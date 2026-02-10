@@ -59,7 +59,7 @@ description: Renesas FSP (Flexible Software Package) configuration expert for RA
 └─────────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  Phase 4: 查询 FSP 文档 (调用fsp-mcp-server mcp工具)                          │
+│  Phase 4: 查询 FSP 文档 (调用fsp-docs mcp工具)                          │
 │  根据需求组合使用 MCP 工具:                                      │
 │  ├─ get_config_workflow(peripheral="...")  → 配置步骤          │
 │  ├─ search_docs(query="...")             → 具体用法            │
@@ -321,14 +321,14 @@ Skill → 提供系统化排查清单
 ## 总结
 
 ```
-调用fsp-mcp-server mcp工具时机:
+调用fsp-docs mcp工具时机:
 
 用户提问
     ↓
 Skill 判断需求
     ↓
 需要 FSP 专用信息？
-    ├─ YES → 调用 MCP 工具 ← 这是 调用fsp-mcp-server mcp工具点
+    ├─ YES → 调用 MCP 工具 ← 这是 调用fsp-docs mcp工具点
     │         ↓
     │    MCP 返回 FSP 文档/配置/示例
     │         ↓
