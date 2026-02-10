@@ -16,13 +16,36 @@ wget https://xget.xi-xu.me/gh/renesas/fsp/releases/download/v6.0.0/fsp_documenta
 # Directory structure: RA-tools/fsp_documentation/v6.0.0/
 ```
 
-### 2. Configure Environment Variables (Optional)
+### 2. Configure Environment Variables
 
-Edit `.env` file in RA-tools root directory:
+Copy the template file and modify according to your environment:
+
+**Linux/Mac:**
+
+```bash
+cd mcp/fsp-mcp-server
+cp .env.template .env
+nano .env  # Edit paths according to your environment
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd mcp\fsp-mcp-server
+copy .env.template .env
+notepad .env  # Edit paths according to your environment
+```
+
+Key configuration items in `.env`:
 
 ```env
+# Path to FSP documentation directory
 FSP_DOCS_PATH=F:/projects/fsp-mcp/RA-tools/fsp_documentation
-FSP_INDEX_PATH=F:/projects/fsp-mcp/RA-tools/mcp/fsp-mcp-server/dist
+
+# Path to SDK (for searching example projects)
+SDK_PATH=F:/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main
+
+# Default FSP version
 FSP_DEFAULT_VERSION=v6.0.0
 ```
 
@@ -126,6 +149,7 @@ Add to `C:\Users\<user>\.claude.json` (Windows)
       "env": {
         "FSP_DOCS_PATH": "F:\\projects\\fsp-mcp\\RA-tools\\fsp_documentation",
         "FSP_INDEX_PATH": "F:\\projects\\fsp-mcp\\RA-tools\\mcp\\fsp-mcp-server\\dist",
+        "SDK_PATH": "F:\\projects\\fsp-mcp\\sdk-bsp-ra8p1-titan-board-main",
         "FSP_DEFAULT_VERSION": "v6.0.0"
       }
     }
@@ -144,6 +168,7 @@ Add to `C:\Users\<user>\.claude.json` (Windows)
       "env": {
         "FSP_DOCS_PATH": "/home/user/projects/fsp-mcp/RA-tools/fsp_documentation",
         "FSP_INDEX_PATH": "/home/user/projects/fsp-mcp/RA-tools/mcp/fsp-mcp-server/dist",
+        "SDK_PATH": "/home/user/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main",
         "FSP_DEFAULT_VERSION": "v6.0.0"
       }
     }
@@ -156,19 +181,23 @@ Add to `C:\Users\<user>\.claude.json` (Windows)
 ```
 RA-tools/
 ├── fsp_documentation/v6.0.0/    # FSP official documentation (downloaded)
+├── sdk-bsp-ra8p1-titan-board-main/  # SDK example projects
+│   └── project/                 # Example projects
+│       ├── Titan_basic_blink_led/
+│       ├── Titan_basic_buzzer/
+│       ├── Titan_basic_key_irq/
+│       ├── Titan_component_flash_fs/
+│       └── Titan_component_netutils/
 ├── mcp/fsp-mcp-server/          # MCP server
 │   ├── src/                      # Source code
 │   ├── dist/                     # Compiled files and index storage
 │   │   ├── server.js             # MCP server entry
 │   │   ├── cli.js                # CLI entry
 │   │   └── fsp_v6_0_0_index.jsonl # Document index (~9.6MB)
+│   ├── .env.template             # Environment variables template
 │   └── package.json
 ├── skills/fsp-config-assistant/  # Configuration assistant Skill
 │   └── SKILL.md
-├── setup.sh                      # Automated setup script (Linux/Mac)
-├── setup.bat                     # Automated setup script (Windows)
-├── start-server.sh               # Start server script (Linux/Mac)
-└── start-server.bat              # Start server script (Windows)
 ```
 
 ## Available MCP Tools
@@ -178,10 +207,23 @@ RA-tools/
 | `search_docs` | Search FSP documentation using natural language |
 | `list_modules` | List all available FSP modules |
 | `get_api_reference` | Get detailed API reference for functions |
-| `find_examples` | Find code examples |
+| `find_examples` | Find code examples from documentation |
+| `search_sdk_examples` | Search SDK example projects |
 | `get_module_info` | Get module overview |
 | `get_config_workflow` | Get peripheral configuration steps |
 | `analyze_project_config` | Analyze FSP configuration.xml |
+
+## SDK Example Projects
+
+SDK example projects are indexed from `SDK_PATH/project/*/README_zh.md`. Available examples:
+
+| Project | Description |
+| :--- | :--- |
+| `Titan_basic_blink_led` | GPIO LED control |
+| `Titan_basic_buzzer` | GPT PWM buzzer control |
+| `Titan_basic_key_irq` | ICU IRQ external interrupt |
+| `Titan_component_flash_fs` | OSPI Flash, FAL, LittleFS |
+| `Titan_component_netutils` | WiFi, LWIP, SDHI |
 
 
 ## Troubleshooting
@@ -206,10 +248,4 @@ RA-tools/
 - Check that file paths use double backslashes on Windows (`\\`)
 - Restart Claude Desktop after configuration changes
 
-## Index Statistics
 
-- **HTML files processed:** 1281
-- **Files indexed:** 637
-- **Sections extracted:** 9889
-- **Index file size:** ~9.6MB
-- **Supported FSP version:** v6.0.0

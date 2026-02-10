@@ -16,13 +16,36 @@ wget https://xget.xi-xu.me/gh/renesas/fsp/releases/download/v6.0.0/fsp_documenta
 # 目录结构: RA-tools/fsp_documentation/v6.0.0/
 ```
 
-### 2. 配置环境变量（可选）
+### 2. 配置环境变量
 
-编辑 RA-tools 根目录下的 `.env` 文件：
+复制模板文件并根据您的环境进行修改：
+
+**Linux/Mac:**
+
+```bash
+cd mcp/fsp-mcp-server
+cp .env.template .env
+nano .env  # 根据您的环境编辑路径
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd mcp\fsp-mcp-server
+copy .env.template .env
+notepad .env  # 根据您的环境编辑路径
+```
+
+`.env` 文件中的关键配置项：
 
 ```env
+# FSP 文档目录路径
 FSP_DOCS_PATH=F:/projects/fsp-mcp/RA-tools/fsp_documentation
-FSP_INDEX_PATH=F:/projects/fsp-mcp/RA-tools/mcp/fsp-mcp-server/dist
+
+# SDK 路径（用于搜索示例项目）
+SDK_PATH=F:/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main
+
+# 默认 FSP 版本
 FSP_DEFAULT_VERSION=v6.0.0
 ```
 
@@ -46,6 +69,8 @@ npm run build
 cd mcp/fsp-mcp-server
 node dist/cli.js index
 ```
+
+**或手动设置环境变量：**
 
 **或手动设置环境变量：**
 
@@ -136,6 +161,7 @@ npx skills add skills/fsp-config-assistant
       "env": {
         "FSP_DOCS_PATH": "F:\\projects\\fsp-mcp\\RA-tools\\fsp_documentation",
         "FSP_INDEX_PATH": "F:\\projects\\fsp-mcp\\RA-tools\\mcp\\fsp-mcp-server\\dist",
+        "SDK_PATH": "F:\\projects\\fsp-mcp\\sdk-bsp-ra8p1-titan-board-main",
         "FSP_DEFAULT_VERSION": "v6.0.0"
       }
     }
@@ -155,6 +181,7 @@ npx skills add skills/fsp-config-assistant
       "env": {
         "FSP_DOCS_PATH": "/home/user/projects/fsp-mcp/RA-tools/fsp_documentation",
         "FSP_INDEX_PATH": "/home/user/projects/fsp-mcp/RA-tools/mcp/fsp-mcp-server/dist",
+        "SDK_PATH": "/home/user/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main",
         "FSP_DEFAULT_VERSION": "v6.0.0"
       }
     }
@@ -167,20 +194,24 @@ npx skills add skills/fsp-config-assistant
 ```
 RA-tools/
 ├── fsp_documentation/v6.0.0/    # FSP 官方文档（下载后）
+├── sdk-bsp-ra8p1-titan-board-main/  # SDK 示例项目
+│   └── project/                 # 示例项目
+│       ├── Titan_basic_blink_led/
+│       ├── Titan_basic_buzzer/
+│       ├── Titan_basic_key_irq/
+│       ├── Titan_component_flash_fs/
+│       └── Titan_component_netutils/
 ├── mcp/fsp-mcp-server/          # MCP 服务器
 │   ├── src/                      # 源代码
 │   ├── dist/                     # 编译文件和索引存储
 │   │   ├── server.js             # MCP 服务器入口
 │   │   ├── cli.js                # CLI 入口
 │   │   └── fsp_v6_0_0_index.jsonl # 文档索引 (~9.6MB)
+│   ├── .env.template             # 环境变量模板
 │   └── package.json
 ├── skills/fsp-config-assistant/  # 配置助手 Skill
 │   └── SKILL.md
-├── .env                          # 环境变量配置
-├── setup.sh                      # 自动安装脚本 (Linux/Mac)
-├── setup.bat                     # 自动安装脚本 (Windows)
-├── start-server.sh               # 启动服务器脚本 (Linux/Mac)
-└── start-server.bat              # 启动服务器脚本 (Windows)
+
 ```
 
 ## 可用的 MCP 工具
@@ -190,10 +221,23 @@ RA-tools/
 | `search_docs` | 使用自然语言搜索 FSP 文档 |
 | `list_modules` | 列出所有可用的 FSP 模块 |
 | `get_api_reference` | 获取函数的详细 API 参考 |
-| `find_examples` | 查找代码示例 |
+| `find_examples` | 从文档中查找代码示例 |
+| `search_sdk_examples` | 搜索 SDK 示例项目 |
 | `get_module_info` | 获取模块概览 |
 | `get_config_workflow` | 获取外设配置步骤 |
 | `analyze_project_config` | 分析 FSP configuration.xml |
+
+## SDK 示例项目
+
+SDK 示例项目从 `SDK_PATH/project/*/README_zh.md` 索引。可用示例：
+
+| 项目 | 描述 |
+| :--- | :--- |
+| `Titan_basic_blink_led` | GPIO LED 控制 |
+| `Titan_basic_buzzer` | GPT PWM 蜂鸣器控制 |
+| `Titan_basic_key_irq` | ICU IRQ 外部中断 |
+| `Titan_component_flash_fs` | OSPI Flash、FAL、LittleFS |
+| `Titan_component_netutils` | WiFi、LWIP、SDHI |
 
 ## 验证
 
@@ -233,10 +277,4 @@ verify.bat
 - 检查 Windows 上的文件路径是否使用双反斜杠 (`\\`)
 - 配置更改后重启 Claude Desktop
 
-## 索引统计
 
-- **处理的 HTML 文件数:** 1281
-- **索引的文件数:** 637
-- **提取的段落数:** 9889
-- **索引文件大小:** ~9.6MB
-- **支持的 FSP 版本:** v6.0.0
