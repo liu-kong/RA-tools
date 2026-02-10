@@ -1,0 +1,45 @@
+{
+  "name": "fsp-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Renesas FSP documentation search",
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "fsp-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "index": "node dist/cli.js index",
+    "serve": "node dist/cli.js serve"
+  },
+  "keywords": [
+    "mcp",
+    "fsp",
+    "renesas",
+    "embedded",
+    "ra",
+    "mcu"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "fast-xml-parser": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
