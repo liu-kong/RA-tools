@@ -124,8 +124,7 @@ npx skills add skills/fsp-config-assistant
 
 ## 配置 Claude Desktop
 
-在 `C:\Users\<用户>\AppData\Roaming\Claude\claude_desktop_config.json` (Windows)
-或 `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) 中添加：
+在 `C:\Users\<user>\.claude.json` 中添加：
 
 ```json
 {

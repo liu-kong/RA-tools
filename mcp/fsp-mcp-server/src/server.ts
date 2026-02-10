@@ -15,8 +15,9 @@ import {
 import { config } from './config.js';
 import FSPSearchEngine from './search.js';
 import { XMLParser } from 'fast-xml-parser';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, readdirSync, statSync } from 'fs';
+import { resolve, join } from 'path';
+import { glob } from 'glob';
 
 // Cache search engines per version
 const searchEngines = new Map<string, FSPSearchEngine>();
@@ -241,6 +242,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         required: ['config_path'],
       },
     },
+    {
+      name: 'search_sdk_examples',
+      description: 'Search SDK example projects (README_zh.md) to find configuration solutions. Returns FSP configuration, RT-Thread Settings, and key steps from example projects.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search query for finding relevant examples (e.g., "DMA", "UART", "OSPI Flash", "WiFi")',
+          },
+          max_results: {
+            type: 'number',
+            description: 'Maximum number of example projects to return (default: 5)',
+            default: 5,
+          },
+        },
+        required: ['query'],
+      },
+    },
   ];
 
   return { tools };
@@ -266,6 +286,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await handleGetConfigWorkflow(args);
       case 'analyze_project_config':
         return await handleAnalyzeProjectConfig(args);
+      case 'search_sdk_examples':
+        return await handleSearchSdkExamples(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -728,6 +750,163 @@ async function handleAnalyzeProjectConfig(args: any) {
         {
           type: 'text',
           text: `Error analyzing configuration file: ${error instanceof Error ? error.message : String(error)}\n\nMake sure the path is correct and the file is a valid FSP configuration.xml.`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Search SDK example projects for relevant configuration solutions
+ */
+async function handleSearchSdkExamples(args: any) {
+  const query = args.query?.toLowerCase() || '';
+  const maxResults = args.max_results || 5;
+
+  // Get SDK path from .env or use default
+  const sdkPath = process.env.SDK_PATH || 'F:/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main';
+  const projectPath = join(sdkPath, 'project');
+
+  const output = [`## SDK Example Projects Search Results\n`];
+  output.push(`**Query:** "${args.query}"\n`);
+  output.push(`**SDK Path:** ${sdkPath}\n\n`);
+
+  try {
+    // Find all README_zh.md files in project directories
+    const readmeFiles = await glob('*/README_zh.md', { cwd: projectPath });
+
+    if (readmeFiles.length === 0) {
+      output.push('No example projects found in SDK.\n');
+      return {
+        content: [{ type: 'text', text: output.join('\n') }],
+      };
+    }
+
+    // Search for matching examples
+    const matches: Array<{
+      name: string;
+      path: string;
+      content: string;
+      relevance: number;
+    }> = [];
+
+    for (const readmeFile of readmeFiles) {
+      const fullPath = join(projectPath, readmeFile);
+      const projectName = readmeFile.split('/')[0];
+
+      try {
+        const content = readFileSync(fullPath, 'utf-8').toLowerCase();
+
+        // Calculate relevance score
+        let relevance = 0;
+
+        // Exact match in title gets highest score
+        if (content.includes(`# ${query}`)) {
+          relevance += 10;
+        }
+
+        // Match in headings gets high score
+        const headingMatch = content.match(new RegExp(`^#+ .*${query}.*$`, 'gm'));
+        if (headingMatch) {
+          relevance += headingMatch.length * 3;
+        }
+
+        // Count query occurrences in content
+        const occurrences = (content.match(new RegExp(query, 'g')) || []).length;
+        relevance += occurrences;
+
+        if (relevance > 0) {
+          matches.push({
+            name: projectName,
+            path: fullPath,
+            content: readFileSync(fullPath, 'utf-8'),
+            relevance,
+          });
+        }
+      } catch (error) {
+        // Skip files that can't be read
+      }
+    }
+
+    // Sort by relevance and limit results
+    matches.sort((a, b) => b.relevance - a.relevance);
+    const topMatches = matches.slice(0, maxResults);
+
+    if (topMatches.length === 0) {
+      output.push(`No examples found matching "${query}".\n\n`);
+      output.push(`**Available Projects:**\n`);
+      for (const readmeFile of readmeFiles) {
+        const projectName = readmeFile.split('/')[0];
+        output.push(`- ${projectName}\n`);
+      }
+    } else {
+      output.push(`Found ${topMatches.length} relevant example projects:\n\n`);
+
+      for (let i = 0; i < topMatches.length; i++) {
+        const match = topMatches[i];
+        output.push(`### ${i + 1}. ${match.name}\n`);
+        output.push(`**Path:** \`${match.path}\`\n`);
+        output.push(`**Relevance:** ${match.relevance}\n\n`);
+
+        // Extract key sections from README
+        const lines = match.content.split('\n');
+        let inCodeBlock = false;
+        let extractedSections: string[] = [];
+        let currentSection: string[] = [];
+        let sectionCount = 0;
+
+        for (const line of lines) {
+          // Track code blocks
+          if (line.trim().startsWith('```')) {
+            inCodeBlock = !inCodeBlock;
+            currentSection.push(line);
+            continue;
+          }
+
+          // Extract relevant sections
+          if (line.startsWith('# ') || line.startsWith('## ')) {
+            if (currentSection.length > 0 && sectionCount < 3) {
+              extractedSections.push(currentSection.join('\n'));
+              sectionCount++;
+            }
+            currentSection = [line];
+          } else if (line.toLowerCase().includes(query) || inCodeBlock) {
+            currentSection.push(line);
+          } else if (currentSection.length > 0) {
+            currentSection.push(line);
+          }
+
+          if (sectionCount >= 3) break;
+        }
+
+        if (currentSection.length > 0) {
+          extractedSections.push(currentSection.join('\n'));
+        }
+
+        // Format extracted content
+        for (const section of extractedSections) {
+          const trimmed = section.trim();
+          if (trimmed.length > 0 && trimmed.length < 2000) {
+            output.push(`${trimmed}\n\n`);
+            output.push(`---\n\n`);
+          }
+        }
+      }
+    }
+
+    output.push(`\n**Total Examples Searched:** ${readmeFiles.length}\n`);
+
+    return {
+      content: [{ type: 'text', text: output.join('\n') }],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error searching SDK examples: ${error instanceof Error ? error.message : String(error)}\n\n` +
+            `Make sure SDK_PATH is set correctly in .env file.\n` +
+            `Current SDK_PATH: ${sdkPath}`,
         },
       ],
     };
