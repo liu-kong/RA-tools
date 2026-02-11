@@ -99,6 +99,7 @@ node dist\cli.js index
 ```
 
 Expected output:
+
 ```
 Indexing FSP documentation version v6.0.0...
 Documentation path: .../fsp_documentation/v6.0.0
@@ -158,6 +159,7 @@ Add to `C:\Users\<user>\.claude.json` (Windows)
 ```
 
 **Linux/Mac paths:**
+
 ```json
 {
   "mcpServers": {
@@ -193,7 +195,11 @@ RA-tools/
 │   ├── dist/                     # Compiled files and index storage
 │   │   ├── server.js             # MCP server entry
 │   │   ├── cli.js                # CLI entry
-│   │   └── fsp_v6_0_0_index.jsonl # Document index (~9.6MB)
+│   │   ├── fsp_v6_0_0_index.jsonl # Document index (~9.6MB)
+│   │   └── data/                 # Pin data files
+│   │       ├── pins.json        # Pin mappings (~58KB)
+│   │       ├── pin_functions.json # Function descriptions (~27KB)
+│   │       └── toc_flat.json    # Manual TOC (~265KB)
 │   ├── .env.template             # Environment variables template
 │   └── package.json
 ├── skills/fsp-config-assistant/  # Configuration assistant Skill
@@ -202,16 +208,48 @@ RA-tools/
 
 ## Available MCP Tools
 
+### Documentation Search Tools
+
 | Tool | Description |
 | :--- | :--- |
 | `search_docs` | Search FSP documentation using natural language |
 | `list_modules` | List all available FSP modules |
 | `get_api_reference` | Get detailed API reference for functions |
 | `find_examples` | Find code examples from documentation |
-| `search_sdk_examples` | Search SDK example projects |
 | `get_module_info` | Get module overview |
 | `get_config_workflow` | Get peripheral configuration steps |
 | `analyze_project_config` | Analyze FSP configuration.xml |
+| `get_pin_info` | Get detailed information for a specific pin | `A1`, `B12`, `M5` |
+| `find_pins_by_function` | Find pins by function/signal name | `SCI0_TXD`, `P000`, `UART0` |
+| `get_function_description` | Get function description with I/O info | `VCC_01`, `XTAL`, `CLKOUT` |
+| `search_manual_toc` | Search RA8P1 hardware manual TOC | `clock`, `DMA`, `ADC` |
+
+### Pin Data Examples
+
+```text
+# Query A1 pin information
+get_pin_info("A1")
+# Returns: 8 function categories (power, IO ports, external bus, etc.)
+
+# Find SCI0 related pins
+find_pins_by_function("SCI0")
+# Returns: U11, U12
+
+# Get power pin description
+get_function_description("VCC_01")
+# Returns: Power pin connection instructions
+
+# Search manual for clock content
+search_manual_toc("clock")
+# Returns: Related sections and page numbers
+```
+
+### Data Statistics
+
+- **Total Pins**: 298 (BGA289)
+- **Function Categories**: 212
+- **Manual TOC Entries**: 2845
+- **Unique Signals**: 1015
 
 ## SDK Example Projects
 
@@ -225,7 +263,6 @@ SDK example projects are indexed from `SDK_PATH/project/*/README_zh.md`. Availab
 | `Titan_component_flash_fs` | OSPI Flash, FAL, LittleFS |
 | `Titan_component_netutils` | WiFi, LWIP, SDHI |
 
-
 ## Troubleshooting
 
 ### Index creation fails
@@ -237,9 +274,7 @@ SDK example projects are indexed from `SDK_PATH/project/*/README_zh.md`. Availab
 ### Server won't start
 
 - Ensure `npm run build` was executed
-
 - Check that `dist/server.js` exists
-
 - Verify Node.js version >= 18.0.0
 
 ### Claude can't find MCP tools
@@ -247,5 +282,3 @@ SDK example projects are indexed from `SDK_PATH/project/*/README_zh.md`. Availab
 - Verify Claude Desktop configuration file path
 - Check that file paths use double backslashes on Windows (`\\`)
 - Restart Claude Desktop after configuration changes
-
-

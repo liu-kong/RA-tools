@@ -14,10 +14,10 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { config } from './config.js';
 import FSPSearchEngine from './search.js';
+import { getPinDataLoader } from './pin-data.js';
 import { XMLParser } from 'fast-xml-parser';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { resolve, join } from 'path';
-import { glob } from 'glob';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 // Cache search engines per version
 const searchEngines = new Map<string, FSPSearchEngine>();
@@ -243,19 +243,61 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
     },
     {
-      name: 'search_sdk_examples',
-      description: 'Search SDK example projects (README_zh.md) to find configuration solutions. Returns FSP configuration, RT-Thread Settings, and key steps from example projects.',
+      name: 'get_pin_info',
+      description: 'Get detailed information for a specific BGA289 pin including all available functions and their descriptions. Use this to understand what functions are available on a specific pin.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pin_name: {
+            type: 'string',
+            description: 'BGA289 pin name (e.g., "A1", "B12", "M5")',
+          },
+        },
+        required: ['pin_name'],
+      },
+    },
+    {
+      name: 'find_pins_by_function',
+      description: 'Find all BGA289 pins that support a specific function or signal. Use this to find which pins can be used for a peripheral function.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          function_name: {
+            type: 'string',
+            description: 'Function or signal name to search for (e.g., "SCI0_TXD", "P000", "UART0")',
+          },
+        },
+        required: ['function_name'],
+      },
+    },
+    {
+      name: 'get_function_description',
+      description: 'Get detailed description of a function or signal including I/O direction and functional description.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          signal: {
+            type: 'string',
+            description: 'Signal name (e.g., "VCC_01", "XTAL", "SCI0_TXD")',
+          },
+        },
+        required: ['signal'],
+      },
+    },
+    {
+      name: 'search_manual_toc',
+      description: 'Search the RA8P1 hardware manual table of contents. Use this to find relevant sections and page numbers in the manual.',
       inputSchema: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'Search query for finding relevant examples (e.g., "DMA", "UART", "OSPI Flash", "WiFi")',
+            description: 'Search query (e.g., "DMA", "clock configuration", "UART")',
           },
           max_results: {
             type: 'number',
-            description: 'Maximum number of example projects to return (default: 5)',
-            default: 5,
+            description: 'Maximum number of results (default: 10)',
+            default: 10,
           },
         },
         required: ['query'],
@@ -286,8 +328,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await handleGetConfigWorkflow(args);
       case 'analyze_project_config':
         return await handleAnalyzeProjectConfig(args);
-      case 'search_sdk_examples':
-        return await handleSearchSdkExamples(args);
+      case 'get_pin_info':
+        return await handleGetPinInfo(args);
+      case 'find_pins_by_function':
+        return await handleFindPinsByFunction(args);
+      case 'get_function_description':
+        return await handleGetFunctionDescription(args);
+      case 'search_manual_toc':
+        return await handleSearchManualTOC(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -756,161 +804,197 @@ async function handleAnalyzeProjectConfig(args: any) {
   }
 }
 
-/**
- * Search SDK example projects for relevant configuration solutions
- */
-async function handleSearchSdkExamples(args: any) {
-  const query = args.query?.toLowerCase() || '';
-  const maxResults = args.max_results || 5;
+async function handleGetPinInfo(args: any) {
+  const pinName = args.pin_name;
 
-  // Get SDK path from .env or use default
-  const sdkPath = process.env.SDK_PATH || 'F:/projects/fsp-mcp/sdk-bsp-ra8p1-titan-board-main';
-  const projectPath = join(sdkPath, 'project');
-
-  const output = [`## SDK Example Projects Search Results\n`];
-  output.push(`**Query:** "${args.query}"\n`);
-  output.push(`**SDK Path:** ${sdkPath}\n\n`);
-
-  try {
-    // Find all README_zh.md files in project directories
-    const readmeFiles = await glob('*/README_zh.md', { cwd: projectPath });
-
-    if (readmeFiles.length === 0) {
-      output.push('No example projects found in SDK.\n');
-      return {
-        content: [{ type: 'text', text: output.join('\n') }],
-      };
-    }
-
-    // Search for matching examples
-    const matches: Array<{
-      name: string;
-      path: string;
-      content: string;
-      relevance: number;
-    }> = [];
-
-    for (const readmeFile of readmeFiles) {
-      const fullPath = join(projectPath, readmeFile);
-      const projectName = readmeFile.split('/')[0];
-
-      try {
-        const content = readFileSync(fullPath, 'utf-8').toLowerCase();
-
-        // Calculate relevance score
-        let relevance = 0;
-
-        // Exact match in title gets highest score
-        if (content.includes(`# ${query}`)) {
-          relevance += 10;
-        }
-
-        // Match in headings gets high score
-        const headingMatch = content.match(new RegExp(`^#+ .*${query}.*$`, 'gm'));
-        if (headingMatch) {
-          relevance += headingMatch.length * 3;
-        }
-
-        // Count query occurrences in content
-        const occurrences = (content.match(new RegExp(query, 'g')) || []).length;
-        relevance += occurrences;
-
-        if (relevance > 0) {
-          matches.push({
-            name: projectName,
-            path: fullPath,
-            content: readFileSync(fullPath, 'utf-8'),
-            relevance,
-          });
-        }
-      } catch (error) {
-        // Skip files that can't be read
-      }
-    }
-
-    // Sort by relevance and limit results
-    matches.sort((a, b) => b.relevance - a.relevance);
-    const topMatches = matches.slice(0, maxResults);
-
-    if (topMatches.length === 0) {
-      output.push(`No examples found matching "${query}".\n\n`);
-      output.push(`**Available Projects:**\n`);
-      for (const readmeFile of readmeFiles) {
-        const projectName = readmeFile.split('/')[0];
-        output.push(`- ${projectName}\n`);
-      }
-    } else {
-      output.push(`Found ${topMatches.length} relevant example projects:\n\n`);
-
-      for (let i = 0; i < topMatches.length; i++) {
-        const match = topMatches[i];
-        output.push(`### ${i + 1}. ${match.name}\n`);
-        output.push(`**Path:** \`${match.path}\`\n`);
-        output.push(`**Relevance:** ${match.relevance}\n\n`);
-
-        // Extract key sections from README
-        const lines = match.content.split('\n');
-        let inCodeBlock = false;
-        let extractedSections: string[] = [];
-        let currentSection: string[] = [];
-        let sectionCount = 0;
-
-        for (const line of lines) {
-          // Track code blocks
-          if (line.trim().startsWith('```')) {
-            inCodeBlock = !inCodeBlock;
-            currentSection.push(line);
-            continue;
-          }
-
-          // Extract relevant sections
-          if (line.startsWith('# ') || line.startsWith('## ')) {
-            if (currentSection.length > 0 && sectionCount < 3) {
-              extractedSections.push(currentSection.join('\n'));
-              sectionCount++;
-            }
-            currentSection = [line];
-          } else if (line.toLowerCase().includes(query) || inCodeBlock) {
-            currentSection.push(line);
-          } else if (currentSection.length > 0) {
-            currentSection.push(line);
-          }
-
-          if (sectionCount >= 3) break;
-        }
-
-        if (currentSection.length > 0) {
-          extractedSections.push(currentSection.join('\n'));
-        }
-
-        // Format extracted content
-        for (const section of extractedSections) {
-          const trimmed = section.trim();
-          if (trimmed.length > 0 && trimmed.length < 2000) {
-            output.push(`${trimmed}\n\n`);
-            output.push(`---\n\n`);
-          }
-        }
-      }
-    }
-
-    output.push(`\n**Total Examples Searched:** ${readmeFiles.length}\n`);
-
-    return {
-      content: [{ type: 'text', text: output.join('\n') }],
-    };
-  } catch (error) {
+  if (!pinName) {
     return {
       content: [
         {
           type: 'text',
-          text: `Error searching SDK examples: ${error instanceof Error ? error.message : String(error)}\n\n` +
-            `Make sure SDK_PATH is set correctly in .env file.\n` +
-            `Current SDK_PATH: ${sdkPath}`,
+          text: 'Error: pin_name parameter is required. Provide the BGA289 pin name (e.g., "A1", "B12", "M5")',
         },
       ],
     };
   }
+
+  const loader = getPinDataLoader();
+  const pinInfo = loader.getPinInfo(pinName);
+
+  if (!pinInfo) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Pin not found: ${pinName}\n\nAvailable pins: A1-U17 (BGA289 package)\n\nTip: Use find_pins_by_function to search for pins by function.`,
+        },
+      ],
+    };
+  }
+
+  const output = [`## Pin Information: ${pinInfo.bga289_pin}\n\n`];
+
+  if (pinInfo.functions.length > 0) {
+    output.push('### Available Functions:\n');
+    for (const fn of pinInfo.functions) {
+      output.push(`- **${fn.category}**: ${fn.signal}`);
+    }
+    output.push('');
+  }
+
+  if (pinInfo.functionDetails && pinInfo.functionDetails.length > 0) {
+    output.push('### Function Details:\n');
+    for (const detail of pinInfo.functionDetails) {
+      output.push(`#### ${detail.function}`);
+      output.push(`- **Signal:** ${detail.signal}`);
+      output.push(`- **I/O:** ${detail.io}`);
+      output.push(`- **Description:** ${detail.description}`);
+      output.push('');
+    }
+  }
+
+  return {
+    content: [{ type: 'text', text: output.join('\n') }],
+  };
+}
+
+async function handleFindPinsByFunction(args: any) {
+  const functionName = args.function_name;
+
+  if (!functionName) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Error: function_name parameter is required.',
+        },
+      ],
+    };
+  }
+
+  const loader = getPinDataLoader();
+  const pins = loader.findPinsByFunction(functionName);
+
+  if (pins.length === 0) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `No pins found for function: ${functionName}\n\nTry a different function name or check the pin functions documentation.`,
+        },
+      ],
+    };
+  }
+
+  const output = [
+    `## Pins for Function: ${functionName}\n\n`,
+    `Found ${pins.length} pin(s)\n\n`,
+  ];
+
+  // Sort pins by grid position
+  const sortedPins = pins.sort();
+  output.push('### Pin Locations:\n');
+  for (const pin of sortedPins) {
+    output.push(`- ${pin}`);
+  }
+
+  output.push('\n---\n');
+  output.push('Use `get_pin_info` to get detailed information about a specific pin.');
+
+  return {
+    content: [{ type: 'text', text: output.join('\n') }],
+  };
+}
+
+async function handleGetFunctionDescription(args: any) {
+  const signal = args.signal;
+
+  if (!signal) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Error: signal parameter is required.',
+        },
+      ],
+    };
+  }
+
+  const loader = getPinDataLoader();
+  const descriptions = loader.getFunctionDescription(signal);
+
+  if (!descriptions || descriptions.length === 0) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `No description found for signal: ${signal}\n\nTry a different signal name.`,
+        },
+      ],
+    };
+  }
+
+  const output = [`## Function Description: ${signal}\n\n`];
+  output.push(`Found ${descriptions.length} description(s)\n\n`);
+
+  for (const desc of descriptions) {
+    output.push(`### ${desc.function}`);
+    output.push(`- **Signal:** ${desc.signal}`);
+    output.push(`- **I/O Direction:** ${desc.io}`);
+    output.push(`- **Description:** ${desc.description}`);
+    output.push('');
+  }
+
+  return {
+    content: [{ type: 'text', text: output.join('\n') }],
+  };
+}
+
+async function handleSearchManualTOC(args: any) {
+  const query = args.query;
+  const maxResults = args.max_results || 10;
+
+  if (!query) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Error: query parameter is required.',
+        },
+      ],
+    };
+  }
+
+  const loader = getPinDataLoader();
+  const results = loader.searchTOC(query, maxResults);
+
+  if (results.length === 0) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `No results found for query: '${query}'\n\nTry different keywords.`,
+        },
+      ],
+    };
+  }
+
+  const output = [
+    `## Manual TOC Search: '${query}'\n\n`,
+    `Found ${results.length} result(s)\n\n`,
+  ];
+
+  for (const result of results) {
+    output.push(`### ${result.title}`);
+    output.push(`- **Section ID:** ${result.id || 'N/A'}`);
+    output.push(`- **Page:** ${result.page}`);
+    output.push(`- **Level:** ${result.level}`);
+    output.push('');
+  }
+
+  return {
+    content: [{ type: 'text', text: output.join('\n') }],
+  };
 }
 
 // Start server

@@ -72,8 +72,6 @@ node dist/cli.js index
 
 **或手动设置环境变量：**
 
-**或手动设置环境变量：**
-
 **Linux/Mac:**
 
 ```bash
@@ -206,7 +204,11 @@ RA-tools/
 │   ├── dist/                     # 编译文件和索引存储
 │   │   ├── server.js             # MCP 服务器入口
 │   │   ├── cli.js                # CLI 入口
-│   │   └── fsp_v6_0_0_index.jsonl # 文档索引 (~9.6MB)
+│   │   ├── fsp_v6_0_0_index.jsonl # 文档索引 (~9.6MB)
+│   │   └── data/                 # 引脚数据文件
+│   │       ├── pins.json        # 引脚映射 (~58KB)
+│   │       ├── pin_functions.json # 功能描述 (~27KB)
+│   │       └── toc_flat.json    # 手册目录 (~265KB)
 │   ├── .env.template             # 环境变量模板
 │   └── package.json
 ├── skills/fsp-config-assistant/  # 配置助手 Skill
@@ -215,6 +217,8 @@ RA-tools/
 ```
 
 ## 可用的 MCP 工具
+
+### 文档搜索工具
 
 | 工具 | 描述 |
 | :--- | :--- |
@@ -226,6 +230,38 @@ RA-tools/
 | `get_module_info` | 获取模块概览 |
 | `get_config_workflow` | 获取外设配置步骤 |
 | `analyze_project_config` | 分析 FSP configuration.xml |
+| :--- | :--- | :--- |
+| `get_pin_info` | 查询指定引脚的详细信息 | `A1`, `B12`, `M5` |
+| `find_pins_by_function` | 按功能查找引脚 | `SCI0_TXD`, `P000`, `UART0` |
+| `get_function_description` | 获取功能描述 | `VCC_01`, `XTAL`, `CLKOUT` |
+| `search_manual_toc` | 搜索硬件手册 | `clock`, `DMA`, `ADC` |
+
+### 引脚数据示例
+
+```text
+# 查询 A1 引脚信息
+get_pin_info("A1")
+# 返回: 8 个功能类别 (电源、IO端口、外部总线等)
+
+# 查找 SCI0 相关引脚
+find_pins_by_function("SCI0")
+# 返回: U11, U12
+
+# 获取电源引脚描述
+get_function_description("VCC_01")
+# 返回: 电源引脚连接说明
+
+# 搜索手册中关于时钟的内容
+search_manual_toc("clock")
+# 返回: 相关章节和页码
+```
+
+### 数据统计
+
+- **引脚数量**: 298 (BGA289)
+- **功能类别**: 212 种
+- **手册目录**: 2845 个条目
+- **唯一信号**: 1015 个
 
 ## SDK 示例项目
 
@@ -266,9 +302,7 @@ verify.bat
 ### 服务器无法启动
 
 - 确保已执行 `npm run build`
-
 - 检查 `dist/server.js` 是否存在
-
 - 验证 Node.js 版本 >= 18.0.0
 
 ### Claude 找不到 MCP 工具
@@ -276,5 +310,3 @@ verify.bat
 - 验证 Claude Desktop 配置文件路径
 - 检查 Windows 上的文件路径是否使用双反斜杠 (`\\`)
 - 配置更改后重启 Claude Desktop
-
-
